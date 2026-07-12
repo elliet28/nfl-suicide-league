@@ -1,8 +1,11 @@
 name: Sync NFL scores
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"
+  # Schedule trigger is disabled until the app is deployed and SYNC_URL /
+  # CRON_SECRET are set as repo secrets (Settings -> Secrets and variables ->
+  # Actions). Re-enable by uncommenting the schedule block below.
+  # schedule:
+  #   - cron: "*/5 * * * *"
   workflow_dispatch: {}
 
 jobs:
