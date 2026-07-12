@@ -1,0 +1,191 @@
+// Prisma schema for the NFL Suicide League app
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- Auth.js (NextAuth v5) models ----------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+
+  accounts        Account[]
+  sessions        Session[]
+  commissioned    League[]     @relation("Commissioner")
+  memberships     Membership[]
+  approvedNotes   PaymentNote[]
+
+  createdAt DateTime @default(now())
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------- League domain models ----------
+
+enum TieRule {
+  ELIMINATES
+  SURVIVES
+}
+
+enum LeagueStatus {
+  OPEN
+  ACTIVE
+  COMPLETED
+}
+
+model League {
+  id             String       @id @default(cuid())
+  name           String
+  inviteCode     String       @unique @default(cuid())
+  entryFee       Decimal      @db.Decimal(10, 2)
+  buyBackFee     Decimal      @db.Decimal(10, 2)
+  seasonYear     Int
+  tieRule        TieRule      @default(ELIMINATES)
+  status         LeagueStatus @default(OPEN)
+
+  commissionerId String
+  commissioner   User @relation("Commissioner", fields: [commissionerId], references: [id])
+
+  memberships Membership[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum MembershipStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  ELIMINATED_PENDING_BUYBACK
+  OUT
+}
+
+model Membership {
+  id             String           @id @default(cuid())
+  userId         String
+  leagueId       String
+  status         MembershipStatus @default(PENDING_PAYMENT)
+  entryApproved  Boolean          @default(false)
+  buyBackUsed    Boolean          @default(false)
+  eliminatedWeek Int?
+  remindedWeek   Int?
+  remindedTier   String?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  picks        Pick[]
+  paymentNotes PaymentNote[]
+
+  joinedAt DateTime @default(now())
+
+  @@unique([userId, leagueId])
+}
+
+enum GameStatus {
+  SCHEDULED
+  IN_PROGRESS
+  FINAL
+}
+
+model Game {
+  id          String     @id @default(cuid())
+  espnEventId String     @unique
+  season      Int
+  week        Int
+  homeTeam    String
+  awayTeam    String
+  kickoff     DateTime
+  status      GameStatus @default(SCHEDULED)
+  homeScore   Int?
+  awayScore   Int?
+  oddsSummary Json?
+  lastSyncedAt DateTime  @default(now())
+
+  picks Pick[]
+
+  @@index([season, week])
+}
+
+enum PickResult {
+  PENDING
+  WIN
+  LOSS
+  TIE
+}
+
+model Pick {
+  id           String     @id @default(cuid())
+  membershipId String
+  week         Int
+  gameId       String
+  teamAbbr     String
+  result       PickResult @default(PENDING)
+  submittedAt  DateTime   @default(now())
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  game       Game       @relation(fields: [gameId], references: [id])
+
+  @@unique([membershipId, week])
+  @@unique([membershipId, teamAbbr])
+}
+
+enum PaymentKind {
+  ENTRY
+  BUYBACK
+}
+
+model PaymentNote {
+  id             String      @id @default(cuid())
+  membershipId   String
+  kind           PaymentKind
+  markedPaidAt   DateTime    @default(now())
+  markedByUserId String
+  note           String?
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  markedBy   User       @relation(fields: [markedByUserId], references: [id])
+}

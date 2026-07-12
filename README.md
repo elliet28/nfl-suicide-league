@@ -6,8 +6,8 @@ See [`.claude/plans`](.claude/plans) (or the project plan) for the full architec
 
 ## Stack
 
-- Next.js 15 (App Router, TypeScript)
-- Postgres (Neon) + Prisma
+- Next.js 16 (App Router, TypeScript)
+- Postgres (Supabase in production, Docker locally) + Prisma
 - Auth.js email magic-link auth via Resend
 - ESPN public endpoints for schedule/scores/news/odds
 
